@@ -1,5 +1,5 @@
 import os
-import threading
+# import threading
 from platform import system
 import re
 import requests
@@ -8,7 +8,6 @@ import json
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 row_count = 0
-
 
 if system() == 'Windows':
     appdata = os.environ['APPDATA']
