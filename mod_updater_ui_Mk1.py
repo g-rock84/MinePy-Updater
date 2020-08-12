@@ -633,7 +633,7 @@ class Ui_MainWindow(object):
                                                                        QtWidgets.QLineEdit.Normal, "")
                     if okPressed and p_name:
                         break
-        if json_name:
+        if p_name:  # was json_name for some reason. Typo?
             self.create_json(p_name, json_list)
 
     def create_json(self, p_name, json_list):
