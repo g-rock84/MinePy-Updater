@@ -9,7 +9,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 row_count = 0
 
-
 if system() == 'Windows':
     appdata = os.environ['APPDATA']
     appdata = appdata.replace('C:', '').replace('\\', '/')
