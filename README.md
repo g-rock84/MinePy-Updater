@@ -5,4 +5,4 @@ This project is my attempt at making the process of updating Minecraft mods less
 
 ## License
 
-This project is licensed under the MIT license.
+This project is licensed under the [MIT](https://github.com/g-rock84/mine_mod_updater/blob/master/LICENSE.txt) license.
