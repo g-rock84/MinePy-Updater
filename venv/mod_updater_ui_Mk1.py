@@ -7,7 +7,6 @@ import zipfile
 import json
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-# mine_dir = "/Users/Jerald/AppData/Roaming/.minecraft"
 row_count = 0
 
 if system() == 'Windows':
