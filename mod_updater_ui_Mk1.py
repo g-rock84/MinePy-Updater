@@ -148,8 +148,8 @@ class Scan_Mods(QtCore.QThread):
 
     def run(self):
         mod_dir = self.mod_dir
-        if self.test_prot:
-            mod_count = 0
+        # if self.test_prot:
+        #     mod_count = 0
         not_found = []
         json_list = []
         mod_count = len([mod for mod in os.listdir(mod_dir) if mod.endswith(".jar")])
@@ -187,7 +187,7 @@ class Scan_Mods(QtCore.QThread):
                             if "not_found" in mod_info:
                                 json_dict = {"name": mod_name, "version": mod_version, "id": "not_found",
                                              "filename": mod}
-                                mod_id = "not_found"
+                                # mod_id = "not_found"
                                 # self.add_rows(mod_name, mod_version, mod_id, mod)
                                 self.sig1.emit(mod_name, mod)
                                 self.sig5.emit(True, None, None)
@@ -205,14 +205,14 @@ class Scan_Mods(QtCore.QThread):
                             mod_info = self.mod_id_lookup(mod_name, mod)
                             if "not_found" in mod_info:
                                 json_dict = {"name": mod_name, "version": "", "id": "not_found", "filename": mod}
-                                md_vers = ""
-                                md_id = "not_found"
+                                # md_vers = ""
+                                # md_id = "not_found"
                                 # self.add_rows(mod_name, md_vers, md_id, mod)
                                 self.sig1.emit(mod_name, mod)
                                 self.sig5.emit(True, None, None)
                             else:
                                 json_dict = {"name": mod_info[0], "version": "", "id": mod_info[1], "filename": mod}
-                                md_vers = ""
+                                # md_vers = ""
                                 # self.add_rows(mod_info[0], md_vers, mod_info[1], mod)
                                 self.sig1.emit(mod_info[0], mod)
                                 self.sig5.emit(True, None, None)
@@ -244,11 +244,11 @@ class Scan_Mods(QtCore.QThread):
         data1 = response.json()
         tmp_list = []
         pos_mm = True  # pos_mm = possible mismatch
-        # searching for mod send 1
+        # searching for mod
         for index, name in enumerate(data1):
             m_n = name['name']
             if m_n == mod_name:
-                # mod found send 2
+                # mod found
                 pos_mm = False
                 mod_id = name['id']
                 tmp_list.append(m_n)
@@ -276,7 +276,7 @@ class Scan_Mods(QtCore.QThread):
             response = requests.get(mod_search_url, headers=user_agent)
             data1 = response.json()
             m_f = False  # mod found
-            break1 = False
+            # break1 = False
             for name in data1:
                 mod_id = name['id']
                 print(mod_id)
