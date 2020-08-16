@@ -171,6 +171,13 @@ class Scan_Mods(QtCore.QThread):
             self.sig5.emit(True, None, None)
             return json_dict
 
+        def found_in_info_vers(json_dict, mod, mod_info, mod_version):
+            print(mod_version)
+            json_dict = {"name": mod_info[0], "version": mod_version, "id": mod_info[1], "filename": mod}
+            self.sig1.emit(mod_info[0], mod)
+            self.sig5.emit(True, None, None)
+            return json_dict
+
         mod_dir = self.mod_dir
         # if self.test_prot:
         #     mod_count = 0
@@ -200,13 +207,13 @@ class Scan_Mods(QtCore.QThread):
                         name = name.group()
                         mod_name = name.replace('name', '').replace(':', '').replace('"', '').replace(' ', '', 1)
                         self.sig5.emit(False, None, mod_name)
-                        version = re.search(r'"mcversion" ?: "\d?\.\d{1,2}\.?\d{0,2}"', mcmod)
+                        version = re.search(r'"mcversion" ?: ?"\d?\.\d{1,2}\.?\d{0,2}"', mcmod)
                         if version:
                             version = version.group(0)
                             version = version.split(':')
                             mod_version = version[1].replace('"', '')
                             mod_version = mod_version.replace(' ', '', 1)
-                            # print(mod_name)
+                            # print(mod_version)
                             mod_info = self.mod_id_lookup(mod_name, mod)
                             if not json_list:
                                 json_dict = {"mod_dir": mod_dir}
@@ -214,6 +221,7 @@ class Scan_Mods(QtCore.QThread):
                             if "not_found" in mod_info:
                                 mod_info = self.mod_id_lookup(mod, mod)
                                 if "not_found" in mod_info:
+                                    # print(mod_version)
                                     json_dict, not_found = not_found_in_info_vers(json_dict, not_found, mod, mod_name,
                                                                                   mod_version)
                                     # json_dict = {"name": mod_name, "version": "", "id": "not_found", "filename": mod}
@@ -221,7 +229,7 @@ class Scan_Mods(QtCore.QThread):
                                     # self.sig1.emit(mod_name, mod)
                                     # self.sig5.emit(True, None, None)
                                 else:
-                                    json_dict = found_in_info(json_dict, mod, mod_info)
+                                    json_dict = found_in_info_vers(json_dict, mod, mod_info, mod_version)
                                     # json_dict = {"name": mod_info[0], "version": "", "id": mod_info[1], "filename": mod}
                                     # self.sig1.emit(mod_info[0], mod)
                                     # self.sig5.emit(True, None, None)
@@ -231,7 +239,7 @@ class Scan_Mods(QtCore.QThread):
                                 self.sig2.emit(mod_info)
                                 return
                             else:
-                                json_dict = found_in_info(json_dict, mod, mod_info)
+                                json_dict = found_in_info_vers(json_dict, mod, mod_info, mod_version)
                                 # json_dict = {"name": mod_info[0], "version": mod_info[2], "id": mod_info[1],
                                 #              "filename": mod}
                                 # self.sig1.emit(mod_info[0], mod)
