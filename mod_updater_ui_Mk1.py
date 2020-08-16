@@ -1,4 +1,5 @@
 import os
+import time
 # import threading
 from platform import system
 import re
@@ -43,7 +44,8 @@ else:
 
 class Load_Profile(QtCore.QThread):
     lp_sig1 = QtCore.pyqtSignal(str, str, str)
-    lp_sig2 =QtCore.pyqtSignal()
+    lp_sig2 = QtCore.pyqtSignal()
+    lp_sig3 = QtCore.pyqtSignal(int, list)
 
     def __init__(self, profile, parent=None):
         QtCore.QThread.__init__(self, parent)
@@ -52,24 +54,33 @@ class Load_Profile(QtCore.QThread):
 
     def run(self):
         profile = self.prof
+        # nf_list = []
+        nf_cnt = None
         # print(cur_dir)
         # cur_dir = cur_dir + "/"
         # file_path = os.path.join(cur_dir, file)
         with open(profile, 'r') as openfile:
             mod_json = json.load(openfile)
         mod_dir = mod_json[0]['mod_dir']
+        self.lp_sig1.emit(mod_dir, None, None)
         # print(mod_json)
         for mod in mod_json:
             if "mod_dir" in mod:
                 continue
+            elif 'noID' in mod:
+                nf_cnt = len(mod['noID'])
+                nf_list = mod['noID']
             else:
-                self.lp_sig1.emit(mod_dir, mod['name'], mod['filename'])
+                self.lp_sig1.emit(None, mod['name'], mod['filename'])
         self.lp_sig2.emit()
+        if nf_cnt:
+            self.lp_sig3.emit(nf_cnt, nf_list)
         return
 
 class Ui_Dialog(object):
     dia_sig = QtCore.pyqtSignal(str, str)
     dia_sig2 = QtCore.pyqtSignal(str)
+    dia_sig3 = QtCore.pyqtSignal(int, list)
     cd_var = None
 
     def Dia_setupUi(self, Dialog, profiles, cur_dir):
@@ -119,12 +130,19 @@ class Ui_Dialog(object):
         self.lp = Load_Profile(profile)
         self.lp.lp_sig1.connect(self.call_back)
         self.lp.lp_sig2.connect(self.close_dia)
+        self.lp.lp_sig3.connect(self.call_back2)
         self.lp.start()
 
-    def call_back(self, mod_dir, mod_name, mod_file):
+    def call_back(self, mod_dir="", mod_name="", mod_file=""):
         # print(mod_name)
-        self.dia_sig.emit(mod_name, mod_file)
-        self.dia_sig2.emit(mod_dir)
+        if mod_dir:
+            self.dia_sig2.emit(mod_dir)
+            mod_dir = None
+        else:
+            self.dia_sig.emit(mod_name, mod_file)
+
+    def call_back2(self, nf_cnt, nf_list):
+        self.dia_sig3.emit(nf_cnt, nf_list)
 
     def close_dia(self):
         self.close()
@@ -140,7 +158,7 @@ class Scan_Mods(QtCore.QThread):
     sig3 = QtCore.pyqtSignal(int, list)
     sig4 = QtCore.pyqtSignal(list)
     sig5 = QtCore.pyqtSignal(bool, object, object)
-    sig6 = QtCore.pyqtSignal(bool)
+    sig6 = QtCore.pyqtSignal()
 
     def __init__(self, m_d, test_prot, parent=None):
         QtCore.QThread.__init__(self, parent)
@@ -150,7 +168,9 @@ class Scan_Mods(QtCore.QThread):
 
     def run(self):
         def not_found_in_info(json_dict, not_found, mod, mod_name):
-            # print("not in info = " + mod_name + " | " + mod)
+            print("not in info = " + mod_name + " | " + mod)
+            if not mod_name:
+                mod_name = mod
             json_dict = {"name": mod_name, "version": "", "id": "not_found", "filename": mod}
             not_found.append(mod)
             self.sig1.emit(mod, mod)
@@ -158,7 +178,7 @@ class Scan_Mods(QtCore.QThread):
             return json_dict, not_found
 
         def not_found_in_info_vers(json_dict, not_found, mod, mod_name, mod_version):
-            # print("not in info vers = " + mod_name + " | " + mod)
+            print("not in info vers = " + mod_name + " | " + mod)
             json_dict = {"name": mod_name, "version": mod_version, "id": "not_found", "filename": mod}
             not_found.append(mod)
             self.sig1.emit(mod_name, mod)
@@ -172,7 +192,7 @@ class Scan_Mods(QtCore.QThread):
             return json_dict
 
         def found_in_info_vers(json_dict, mod, mod_info, mod_version):
-            print(mod_version)
+            # print(mod_version)
             json_dict = {"name": mod_info[0], "version": mod_version, "id": mod_info[1], "filename": mod}
             self.sig1.emit(mod_info[0], mod)
             self.sig5.emit(True, None, None)
@@ -293,7 +313,9 @@ class Scan_Mods(QtCore.QThread):
             not_found_dict = {"noID": not_found}
             json_list.append(not_found_dict)
             self.sig3.emit(nf_cnt, not_found)
+        self.sig6.emit()
         self.sig4.emit(json_list)
+
 
     def mod_id_lookup(self, mod_name, mod):
         # print(mod_name)
@@ -624,6 +646,7 @@ class Ui_MainWindow(object):
             dia_show = Dialog(profiles, cur_dir)
             dia_show.dia_sig.connect(self.add_rows)
             dia_show.dia_sig2.connect(self.update_mod_dir)
+            dia_show.dia_sig3.connect(self.no_ID)
             dia_show.exec_()
 
     def no_profiles(self):
@@ -634,6 +657,9 @@ class Ui_MainWindow(object):
         msg.exec()
 
     def update_mod_dir(self, mod_dir):
+        if system() == 'Windows':
+            mod_dir = 'C:' + mod_dir
+            mod_dir = mod_dir.replace('/', '\\')
         self.lineEdit.setText(mod_dir)
 
     def add_rows(self, mod_name_var, installed_file):
@@ -670,15 +696,32 @@ class Ui_MainWindow(object):
     def scan_mods(self):
         test_prot = False           # used to test mod finding; stops at the 3rd mod
         mod_dir = self.lineEdit.text()
+        if not mod_dir:
+            self.dir_empty()
+            return
+        if not os.path.isdir(mod_dir):
+            self.bad_dir()
+            return
+        if not os.listdir(mod_dir):
+            self.no_mods()
+            return
+        for fname in os.listdir(mod_dir):
+            if fname.endswith('.jar'):
+                break
+            else:
+                self.no_mods()
+                return
         if 'C:' in mod_dir:
-            mod_dir = mod_dir.replace('\\', '/')
-            mod_dir = mod_dir.replace('C:', '')
+            mod_dir = mod_dir.replace('\\', '/').replace('C:', '')
+        self.incr = 0
+        self.update_prog_1(False, None, None, self.incr)
         self.scanmods = Scan_Mods(mod_dir, test_prot)
         self.scanmods.sig1.connect(self.add_rows)
         self.scanmods.sig2.connect(self.conn_err)
         self.scanmods.sig3.connect(self.no_ID)
         self.scanmods.sig4.connect(self.profile_name)
         self.scanmods.sig5.connect(self.update_prog_1)
+        self.scanmods.sig6.connect(self.done_scanning)
         self.scanmods.start()
 
     def conn_err(self):
@@ -686,6 +729,27 @@ class Ui_MainWindow(object):
         msg.setIcon(QtWidgets.QMessageBox.Warning)
         msg.setWindowTitle('Error')
         msg.setText("Error contacting server.\n\nMake sure you have an internet connection.")
+        msg.exec()
+
+    def bad_dir(self):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle('Error')
+        msg.setText("Hmm, you sure about that path? It looks suspect to me.")
+        msg.exec()
+
+    def dir_empty(self):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle('Error')
+        msg.setText("The Mod Directory field is empty. For now, there is nothing to scan.")
+        msg.exec()
+
+    def no_mods(self):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle('Error')
+        msg.setText("There don't appear to be any mods in this folder.")
         msg.exec()
 
     def profile_name(self, json_list):
@@ -714,6 +778,7 @@ class Ui_MainWindow(object):
         with open(filename, "w") as outfile:
             outfile.write(json_obj)
 
+
     def no_ID(self, nf_cnt, not_found):
         self.label_6.setText(str(nf_cnt))
         self.label_5.show()
@@ -741,10 +806,10 @@ class Ui_MainWindow(object):
             mod_dir = mod_dir.replace('/', '\\')
         self.lineEdit.setText(mod_dir)
 
-    def update_prog_1(self, prog_i, max_prog="", mod_name=""):
+    def update_prog_1(self, prog_i, max_prog=int(), mod_name="", incr=int()):
         if max_prog:
-            self.max_prog = max_prog
-            self.progressBar_1.setMaximum(self.max_prog)
+            # self.max_prog = max_prog
+            self.progressBar_1.setMaximum(max_prog)
         self.progressBar_1.show()
         self.label_11.show()
         if mod_name:
@@ -754,6 +819,10 @@ class Ui_MainWindow(object):
             self.incr = self.incr + 1
             self.progressBar_1.setValue(self.incr)
         pass
+
+    def done_scanning(self):
+        self.progressBar_1.hide()
+        self.label_11.hide()
 
     def clear_table(self):
         table = self.tableWidget
@@ -766,6 +835,8 @@ class Ui_MainWindow(object):
         self.label_5.hide()
         self.label_6.setText("")
         self.label_6.hide()
+        self.progressBar_1.hide()
+        self.label_11.hide()
         self.tableWidget.resizeColumnsToContents()
 
     def get_checked(self):
