@@ -168,7 +168,7 @@ class Scan_Mods(QtCore.QThread):
 
     def run(self):
         def not_found_in_info(json_dict, not_found, mod, mod_name):
-            print("not in info = " + mod_name + " | " + mod)
+            # print("not in info = " + mod_name + " | " + mod)
             if not mod_name:
                 mod_name = mod
             json_dict = {"name": mod_name, "version": "", "id": "not_found", "filename": mod}
@@ -178,7 +178,7 @@ class Scan_Mods(QtCore.QThread):
             return json_dict, not_found
 
         def not_found_in_info_vers(json_dict, not_found, mod, mod_name, mod_version):
-            print("not in info vers = " + mod_name + " | " + mod)
+            # print("not in info vers = " + mod_name + " | " + mod)
             json_dict = {"name": mod_name, "version": mod_version, "id": "not_found", "filename": mod}
             not_found.append(mod)
             self.sig1.emit(mod_name, mod)
@@ -186,13 +186,15 @@ class Scan_Mods(QtCore.QThread):
             return json_dict, not_found
 
         def found_in_info(json_dict, mod, mod_info):
-            json_dict = {"name": mod_info[0], "version": "", "id": mod_info[1], "filename": mod}
+            # if len(mod_info) == 3:
+            #     mod_version = mod_info[2]
+            json_dict = {"name": mod_info[0], "version": mod_info[2], "id": mod_info[1], "filename": mod}
             self.sig1.emit(mod_info[0], mod)
             self.sig5.emit(True, None, None)
             return json_dict
 
         def found_in_info_vers(json_dict, mod, mod_info, mod_version):
-            # print(mod_version)
+            # print(mod_info)
             json_dict = {"name": mod_info[0], "version": mod_version, "id": mod_info[1], "filename": mod}
             self.sig1.emit(mod_info[0], mod)
             self.sig5.emit(True, None, None)
@@ -234,12 +236,12 @@ class Scan_Mods(QtCore.QThread):
                             mod_version = version[1].replace('"', '')
                             mod_version = mod_version.replace(' ', '', 1)
                             # print(mod_version)
-                            mod_info = self.mod_id_lookup(mod_name, mod)
+                            mod_info = self.mod_id_lookup(mod_name, mod, True)
                             if not json_list:
                                 json_dict = {"mod_dir": mod_dir}
                                 json_list.append(json_dict)
                             if "not_found" in mod_info:
-                                mod_info = self.mod_id_lookup(mod, mod)
+                                mod_info = self.mod_id_lookup(mod, mod, True)
                                 if "not_found" in mod_info:
                                     # print(mod_version)
                                     json_dict, not_found = not_found_in_info_vers(json_dict, not_found, mod, mod_name,
@@ -267,9 +269,9 @@ class Scan_Mods(QtCore.QThread):
                             json_list.append(json_dict)
                             # print("vers found = " + str(json_dict))
                         else:
-                            mod_info = self.mod_id_lookup(mod_name, mod)
+                            mod_info = self.mod_id_lookup(mod_name, mod, False)
                             if "not_found" in mod_info:
-                                mod_info = self.mod_id_lookup(mod, mod)
+                                mod_info = self.mod_id_lookup(mod, mod, False)
                                 if "not_found" in mod_info:
                                     json_dict, not_found = not_found_in_info(json_dict, not_found, mod, mod_name)
                                     # json_dict = {"name": mod_name, "version": "", "id": "not_found", "filename": mod}
@@ -293,7 +295,7 @@ class Scan_Mods(QtCore.QThread):
 
                 if no_mod_nfo:
                     self.sig5.emit(False, None, mod)
-                    mod_info = self.mod_id_lookup(mod, mod)
+                    mod_info = self.mod_id_lookup(mod, mod, False)
                     if "not_found" in mod_info:
                         json_dict, not_found = not_found_in_info(json_dict, not_found, mod, mod_name)
                         # json_dict = {"name": mod, "version": "", "id": "not_found", "filename": mod}
@@ -317,11 +319,46 @@ class Scan_Mods(QtCore.QThread):
         self.sig4.emit(json_list)
 
 
-    def mod_id_lookup(self, mod_name, mod):
-        # print(mod_name)
+    def mod_id_lookup(self, mod_name, mod, vers_f):
+        def mod_files_search(n_f, m_n, mod_url, mod_id, mod, user_agent, vers_f):
+            tmp_list = []
+            new_search = mod_url + str(mod_id) + "/files"
+            # print(new_search)
+            response = requests.get(new_search, headers=user_agent)
+            if response.status_code != 200:
+                # break1 = True
+                return "error"  # response.status_code
+            data2 = response.json()
+            m_f = False
+            for file in data2:
+                filename = file['fileName']
+                filename = filename.replace(' ', '+')
+                vers = file['gameVersion']
+                if len(vers) > 1:
+                    for x in vers:
+                        test = any(char.isdigit() for char in x)
+                        if test:
+                            vers = []
+                            vers.append(x)
+                # print(filename + " = " + mod)
+                if filename == mod:
+                    # mod found send 2
+                    tmp_list.append(m_n)
+                    tmp_list.append(str(mod_id))
+                    if not vers_f:
+                        tmp_list.append(vers[0])
+                    # print(tmp_list)
+                    m_f = True
+                    return m_f, tmp_list
+            if not m_f and n_f:
+                tmp_list.append('next')
+                return m_f, tmp_list
+            else:
+                return m_f, tmp_list
+
         user_agent = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
-        mod_file = mod
+        # mod_file = mod
         search_url_1 = "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=255&searchFilter="
         mod_url = "https://addons-ecs.forgesvc.net/api/v2/addon/"
         # pos_mm = True  # pos_mm = possible mismatch
@@ -336,10 +373,13 @@ class Scan_Mods(QtCore.QThread):
             for index, name in enumerate(data1):
                 m_n = name['name']
                 if m_n == mod_name:
+                    m_f, tmp_list = mod_files_search(True, m_n, mod_url, name['id'], mod, user_agent, vers_f)
+                    if 'next' in tmp_list:
+                        continue
                     # mod found
-                    mod_id = name['id']
-                    tmp_list.append(m_n)
-                    tmp_list.append(str(mod_id))
+                    # mod_id = name['id']
+                    # tmp_list.append(m_n)
+                    # tmp_list.append(str(mod_id))
                     return tmp_list
         if ' ' in mod_name:
             mod_name_s = mod_name.split(' ', 2)
@@ -364,30 +404,35 @@ class Scan_Mods(QtCore.QThread):
         m_f = False  # mod found
         # break1 = False
         for name in data1:
+            # print(name)
             mod_id = name['id']
             m_n = name['name']
-            new_search = mod_url + str(mod_id) + "/files"
-            response = requests.get(new_search, headers=user_agent)
-            if response.status_code != 200:
-                # break1 = True
-                return "error"  # response.status_code
-            data2 = response.json()
-            for file in data2:
-                filename = file['fileName']
-                vers = file['gameVersion']
-                if filename == mod_file:
-                    # mod found send 2
-                    tmp_list.append(m_n)
-                    tmp_list.append(str(mod_id))
-                    tmp_list.append(vers)
+            m_f, tmp_list = mod_files_search(False, m_n, mod_url, mod_id, mod, user_agent, vers_f)
+            if m_f:
+                return tmp_list
+            # new_search = mod_url + str(mod_id) + "/files"
+            # response = requests.get(new_search, headers=user_agent)
+            # if response.status_code != 200:
+            #     break1 = True
+                # return "error"  # response.status_code
+            # data2 = response.json()
+            # for file in data2:
+            #     filename = file['fileName']
+            #     vers = file['gameVersion']
+            #     if filename == mod_file:
+            #         mod found send 2
+                    # tmp_list.append(m_n)
+                    # tmp_list.append(str(mod_id))
+                    # tmp_list.append(vers)
                     # break1 = True
-                    return tmp_list
+                    # return tmp_list
                 # if break1:
                 #     break
             # if break1:
             #     break
         if not m_f:
             # still send 2
+            # print("not_found")
             tmp_list.append("not_found")
             return tmp_list
 
@@ -705,12 +750,13 @@ class Ui_MainWindow(object):
         if not os.listdir(mod_dir):
             self.no_mods()
             return
+        mods = False
         for fname in os.listdir(mod_dir):
             if fname.endswith('.jar'):
-                break
-            else:
-                self.no_mods()
-                return
+                mods = True
+        if not mods:
+            self.no_mods()
+            return
         if 'C:' in mod_dir:
             mod_dir = mod_dir.replace('\\', '/').replace('C:', '')
         self.incr = 0
