@@ -1,6 +1,4 @@
 import os
-import time
-# import threading
 from platform import system
 import re
 import requests
@@ -177,7 +175,7 @@ class Scan_Mods(QtCore.QThread):
             # self.sig5.emit(True, None, None)
             # return json_dict, not_found
 
-        def not_found_in_info(json_dict, not_found, mod, mod_name="", mod_version=""):
+        def not_found_in_info(not_found, mod, mod_name="", mod_version=""):
             # print("not in info vers = " + mod_name + " | " + mod)
             if not mod_name:
                 mod_name = mod
@@ -187,7 +185,7 @@ class Scan_Mods(QtCore.QThread):
             self.sig5.emit(True, None, None)
             return json_dict, not_found
 
-        def found_in_info(json_dict, mod, mod_info, mod_version=""):
+        def found_in_info(mod, mod_info, mod_version=""):
             if len(mod_info) == 3:
                 mod_version = mod_info[2]
             json_dict = {"name": mod_info[0], "version": mod_version, "id": mod_info[1], "filename": mod}
@@ -246,34 +244,34 @@ class Scan_Mods(QtCore.QThread):
                                 mod_info = self.mod_id_lookup(mod, mod, True)
                                 if "not_found" in mod_info:
                                     # print(mod_version)
-                                    json_dict, not_found = not_found_in_info(json_dict, not_found, mod, mod_name,
+                                    json_dict, not_found = not_found_in_info(not_found, mod, mod_name,
                                                                                   mod_version)
                                 else:
-                                    json_dict = found_in_info(json_dict, mod, mod_info, mod_version)
+                                    json_dict = found_in_info(mod, mod_info, mod_version)
                             elif mod_info == "error":
                                 self.sig2.emit(mod_info)
                                 return
                             else:
-                                json_dict = found_in_info(json_dict, mod, mod_info, mod_version)
+                                json_dict = found_in_info(mod, mod_info, mod_version)
                             json_list.append(json_dict)
                         else:
                             mod_info = self.mod_id_lookup(mod_name, mod, False)
                             if "not_found" in mod_info:
                                 mod_info = self.mod_id_lookup(mod, mod, False)
                                 if "not_found" in mod_info:
-                                    json_dict, not_found = not_found_in_info(json_dict, not_found, mod, mod_name)
+                                    json_dict, not_found = not_found_in_info(not_found, mod, mod_name)
                                 else:
-                                    json_dict = found_in_info(json_dict, mod, mod_info)
+                                    json_dict = found_in_info(mod, mod_info)
                             else:
-                                json_dict = found_in_info(json_dict, mod, mod_info)
+                                json_dict = found_in_info(mod, mod_info)
                             json_list.append(json_dict)
                 if no_mod_nfo:
                     self.sig5.emit(False, None, mod)
                     mod_info = self.mod_id_lookup(mod, mod, False)
                     if "not_found" in mod_info:
-                        json_dict, not_found = not_found_in_info(json_dict, not_found, mod, mod_name)
+                        json_dict, not_found = not_found_in_info(not_found, mod, mod_name)
                     else:
-                        json_dict = found_in_info(json_dict, mod, mod_info)
+                        json_dict = found_in_info(mod, mod_info)
                     json_list.append(json_dict)
         if not_found:
             nf_cnt = len(not_found)
@@ -283,8 +281,8 @@ class Scan_Mods(QtCore.QThread):
         self.sig6.emit()
         self.sig4.emit(json_list)
 
-
-    def mod_id_lookup(self, mod_name, mod, vers_f):
+    @staticmethod
+    def mod_id_lookup(mod_name, mod, vers_f):
         def mod_files_search(n_f, m_n, mod_url, mod_id, mod, user_agent, vers_f):
             tmp_list = []
             new_search = mod_url + str(mod_id) + "/files"
@@ -390,6 +388,7 @@ class Scan_Mods(QtCore.QThread):
                             # self.lp_sig1.emit(mod['name'], mod['filename'])
                     # return
 
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -404,7 +403,7 @@ class Ui_MainWindow(object):
         self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_2.setGeometry(QtCore.QRect(690, 130, 101, 23))
         self.pushButton_2.setObjectName("pushButton_2")
-        self.incr = 0
+        # self.incr = 0
         self.max_prog = 0
         self.pushButton_2.clicked.connect(self.scan_mods)
         self.pushButton_3 = QtWidgets.QPushButton(self.centralwidget)
@@ -518,11 +517,11 @@ class Ui_MainWindow(object):
         self.label_8 = QtWidgets.QLabel(self.centralwidget)
         self.label_8.setGeometry(QtCore.QRect(690, 250, 47, 13))
         self.label_8.setObjectName("label_8")
-        self.label_8.hide()
+        # self.label_8.hide()
         self.label_9 = QtWidgets.QLabel(self.centralwidget)
         self.label_9.setGeometry(QtCore.QRect(750, 250, 47, 13))
         self.label_9.setObjectName("label_9")
-        self.label_9.hide()
+        # self.label_9.hide()
         self.label_10 = QtWidgets.QLabel(self.centralwidget)
         self.label_10.setGeometry(QtCore.QRect(5, 542, 681, 16))
         self.label_10.setObjectName("label_10")
@@ -556,6 +555,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -628,11 +628,12 @@ class Ui_MainWindow(object):
             dia_show.dia_sig3.connect(self.no_ID)
             dia_show.exec_()
 
-    def no_profiles(self):
+    @staticmethod
+    def no_profiles():
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Information)
         msg.setWindowTitle('Whoops')
-        msg.setText("There are currently no modpack profiles available.")
+        msg.setText("There are currently no profiles available.")
         msg.exec()
 
     def update_mod_dir(self, mod_dir):
@@ -694,7 +695,7 @@ class Ui_MainWindow(object):
         if 'C:' in mod_dir:
             mod_dir = mod_dir.replace('\\', '/').replace('C:', '')
         self.incr = 0
-        self.update_prog_1(False, None, None, self.incr)
+        self.update_prog_1(False, None, None)
         self.scanmods = Scan_Mods(mod_dir, test_prot)
         self.scanmods.sig1.connect(self.add_rows)
         self.scanmods.sig2.connect(self.conn_err)
@@ -704,28 +705,32 @@ class Ui_MainWindow(object):
         self.scanmods.sig6.connect(self.done_scanning)
         self.scanmods.start()
 
-    def conn_err(self):
+    @staticmethod
+    def conn_err():
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Warning)
         msg.setWindowTitle('Error')
         msg.setText("Error contacting server.\n\nMake sure you have an internet connection.")
         msg.exec()
 
-    def bad_dir(self):
+    @staticmethod
+    def bad_dir():
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Warning)
         msg.setWindowTitle('Error')
         msg.setText("Hmm, you sure about that path? It looks suspect to me.")
         msg.exec()
 
-    def dir_empty(self):
+    @staticmethod
+    def dir_empty():
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Warning)
         msg.setWindowTitle('Error')
         msg.setText("The Mod Directory field is empty. For now, there is nothing to scan.")
         msg.exec()
 
-    def no_mods(self):
+    @staticmethod
+    def no_mods():
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Warning)
         msg.setWindowTitle('Error')
@@ -751,13 +756,13 @@ class Ui_MainWindow(object):
         if p_name:  # was json_name for some reason. Typo?
             self.create_json(p_name, json_list)
 
-    def create_json(self, p_name, json_list):
+    @staticmethod
+    def create_json(p_name, json_list):
         # print(json_list)
         filename = p_name + ".json"
         json_obj = json.dumps(json_list, indent=4)
         with open(filename, "w") as outfile:
             outfile.write(json_obj)
-
 
     def no_ID(self, nf_cnt, not_found):
         self.label_6.setText(str(nf_cnt))
@@ -765,7 +770,7 @@ class Ui_MainWindow(object):
         self.label_6.show()
         self.not_found = not_found
 
-    def no_ID_msg(self, Event):
+    def no_ID_msg(self):
         nf_str = ""
         for item in self.not_found:
             if nf_str:
@@ -786,7 +791,7 @@ class Ui_MainWindow(object):
             mod_dir = mod_dir.replace('/', '\\')
         self.lineEdit.setText(mod_dir)
 
-    def update_prog_1(self, prog_i, max_prog=int(), mod_name="", incr=int()):
+    def update_prog_1(self, prog_i, max_prog=int(), mod_name=""):
         if max_prog:
             # self.max_prog = max_prog
             self.progressBar_1.setMaximum(max_prog)
@@ -820,7 +825,7 @@ class Ui_MainWindow(object):
         self.tableWidget.resizeColumnsToContents()
 
     def get_checked(self):
-        checked_list = []
+        # checked_list = []
         for i in range(self.tableWidget.rowCount()):
             # print(self.tableWidget.rowCount())
             if self.tableWidget.item(i, 0).checkState() == QtCore.Qt.Checked:
@@ -830,8 +835,8 @@ class Ui_MainWindow(object):
                 print("nope")
         # print(checked_list)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     icon = QtGui.QIcon('mine_updater_icon_sm.ico')
