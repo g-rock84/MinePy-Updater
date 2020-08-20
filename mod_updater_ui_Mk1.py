@@ -4,6 +4,7 @@ import re
 import requests
 import zipfile
 import json
+from collections import Counter
 from PyQt5 import QtCore, QtGui, QtWidgets
 import cgitb
 cgitb.enable(format = 'text')
@@ -44,6 +45,7 @@ class Load_Profile(QtCore.QThread):
     lp_sig1 = QtCore.pyqtSignal(str, str, str)
     lp_sig2 = QtCore.pyqtSignal()
     lp_sig3 = QtCore.pyqtSignal(int, list)
+    lp_sig4 = QtCore.pyqtSignal(list)
 
     def __init__(self, profile, parent=None):
         QtCore.QThread.__init__(self, parent)
@@ -52,7 +54,7 @@ class Load_Profile(QtCore.QThread):
 
     def run(self):
         profile = self.prof
-        # nf_list = []
+        vers_list = []
         nf_cnt = None
         # print(cur_dir)
         # cur_dir = cur_dir + "/"
@@ -70,7 +72,9 @@ class Load_Profile(QtCore.QThread):
                 nf_list = mod['noID']
             else:
                 self.lp_sig1.emit(None, mod['name'], mod['filename'])
+                vers_list.append(mod['version'])
         self.lp_sig2.emit()
+        self.lp_sig4.emit(vers_list)
         if nf_cnt:
             self.lp_sig3.emit(nf_cnt, nf_list)
         return
@@ -79,6 +83,7 @@ class Ui_Dialog(object):
     dia_sig = QtCore.pyqtSignal(str, str)
     dia_sig2 = QtCore.pyqtSignal(str)
     dia_sig3 = QtCore.pyqtSignal(int, list)
+    dia_sig4 = QtCore.pyqtSignal(list)
     cd_var = None
 
     def Dia_setupUi(self, Dialog, profiles, cur_dir):
@@ -129,6 +134,7 @@ class Ui_Dialog(object):
         self.lp.lp_sig1.connect(self.call_back)
         self.lp.lp_sig2.connect(self.close_dia)
         self.lp.lp_sig3.connect(self.call_back2)
+        self.lp.lp_sig4.connect(self.call_back3)
         self.lp.start()
 
     def call_back(self, mod_dir="", mod_name="", mod_file=""):
@@ -141,6 +147,9 @@ class Ui_Dialog(object):
 
     def call_back2(self, nf_cnt, nf_list):
         self.dia_sig3.emit(nf_cnt, nf_list)
+
+    def call_back3(self, vers_list):
+        self.dia_sig4.emit(vers_list)
 
     def close_dia(self):
         self.close()
@@ -157,6 +166,7 @@ class Scan_Mods(QtCore.QThread):
     sig4 = QtCore.pyqtSignal(list)
     sig5 = QtCore.pyqtSignal(bool, object, object)
     sig6 = QtCore.pyqtSignal()
+    sig7 = QtCore.pyqtSignal(list)
 
     def __init__(self, m_d, test_prot, parent=None):
         QtCore.QThread.__init__(self, parent)
@@ -205,6 +215,7 @@ class Scan_Mods(QtCore.QThread):
         #     mod_count = 0
         not_found = []
         json_list = []
+        vers_list = []
         mod_count = len([mod for mod in os.listdir(mod_dir) if mod.endswith(".jar")])
         self.sig5.emit(False, mod_count, None)
         for mod in os.listdir(mod_dir):
@@ -254,6 +265,7 @@ class Scan_Mods(QtCore.QThread):
                             else:
                                 json_dict = found_in_info(mod, mod_info, mod_version)
                             json_list.append(json_dict)
+                            vers_list.append(json_dict['version'])
                         else:
                             mod_info = self.mod_id_lookup(mod_name, mod, False)
                             if "not_found" in mod_info:
@@ -265,6 +277,7 @@ class Scan_Mods(QtCore.QThread):
                             else:
                                 json_dict = found_in_info(mod, mod_info)
                             json_list.append(json_dict)
+                            vers_list.append(json_dict['version'])
                 if no_mod_nfo:
                     self.sig5.emit(False, None, mod)
                     mod_info = self.mod_id_lookup(mod, mod, False)
@@ -273,6 +286,7 @@ class Scan_Mods(QtCore.QThread):
                     else:
                         json_dict = found_in_info(mod, mod_info)
                     json_list.append(json_dict)
+                    vers_list.append(json_dict['version'])
         if not_found:
             nf_cnt = len(not_found)
             not_found_dict = {"noID": not_found}
@@ -280,6 +294,7 @@ class Scan_Mods(QtCore.QThread):
             self.sig3.emit(nf_cnt, not_found)
         self.sig6.emit()
         self.sig4.emit(json_list)
+        self.sig7.emit(vers_list)
 
     @staticmethod
     def mod_id_lookup(mod_name, mod, vers_f):
@@ -392,75 +407,126 @@ class Scan_Mods(QtCore.QThread):
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(795, 581)
-        # MainWindow.setWindowIcon(QtGui.QIcon('mine_updater_icon_sm.ico'))
+        MainWindow.resize(797, 637)
+        MainWindow.setMinimumSize(QtCore.QSize(797, 637))
         self.not_found = ""
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
+        self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
+        self.gridLayout.setObjectName("gridLayout")
         self.pushButton = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton.setGeometry(QtCore.QRect(690, 160, 101, 23))
+        sizePolicyFF = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicyFF.setHorizontalStretch(0)
+        sizePolicyFF.setVerticalStretch(0)
+        sizePolicyFF.setHeightForWidth(self.pushButton.sizePolicy().hasHeightForWidth())
+        self.pushButton.setSizePolicy(sizePolicyFF)
+        # self.pushButton.setGeometry(QtCore.QRect(690, 160, 101, 23))
         self.pushButton.setObjectName("pushButton")
+        self.gridLayout.addWidget(self.pushButton, 6, 6, 1, 2)
         self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_2.setGeometry(QtCore.QRect(690, 130, 101, 23))
+        # self.pushButton_2.setGeometry(QtCore.QRect(690, 130, 101, 23))
+        sizePolicyMF = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        sizePolicyMF.setHorizontalStretch(0)
+        sizePolicyMF.setVerticalStretch(0)
+        sizePolicyMF.setHeightForWidth(self.pushButton_2.sizePolicy().hasHeightForWidth())
+        self.pushButton_2.setSizePolicy(sizePolicyMF)
         self.pushButton_2.setObjectName("pushButton_2")
+        self.gridLayout.addWidget(self.pushButton_2, 5, 6, 1, 2)
         # self.incr = 0
         self.max_prog = 0
         self.pushButton_2.clicked.connect(self.scan_mods)
         self.pushButton_3 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_3.setGeometry(QtCore.QRect(690, 220, 101, 23))
+        # self.pushButton_3.setGeometry(QtCore.QRect(690, 220, 101, 23))
+        sizePolicyMF.setHeightForWidth(self.pushButton_3.sizePolicy().hasHeightForWidth())
+        self.pushButton_3.setSizePolicy(sizePolicyMF)
         self.pushButton_3.setObjectName("pushButton_3")
+        self.gridLayout.addWidget(self.pushButton_3, 8, 6, 1, 2)
         # self.pushButton_3.clicked.connect(self.profile_name)
         self.pushButton_4 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_4.setGeometry(QtCore.QRect(690, 190, 101, 23))
+        sizePolicyMF.setHeightForWidth(self.pushButton_4.sizePolicy().hasHeightForWidth())
+        self.pushButton_4.setSizePolicy(sizePolicyMF)
+        # self.pushButton_4.setGeometry(QtCore.QRect(690, 190, 101, 23))
         self.pushButton_4.setObjectName("pushButton_4")
+        self.gridLayout.addWidget(self.pushButton_4, 7, 6, 1, 2)
         self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_5.setGeometry(QtCore.QRect(660, 20, 25, 23))
+        sizePolicyFF.setHeightForWidth(self.pushButton_5.sizePolicy().hasHeightForWidth())
+        self.pushButton_5.setSizePolicy(sizePolicyFF)
+        self.pushButton_5.setMaximumSize(QtCore.QSize(25, 22))
+        # self.pushButton_5.setGeometry(QtCore.QRect(660, 20, 25, 23))
+        self.gridLayout.addWidget(self.pushButton_5, 1, 5, 1, 1)
         self.pushButton_5.setObjectName("toolButton")
         self.pushButton_5.clicked.connect(self.get_dir)
         self.pushButton_6 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_6.setGeometry(QtCore.QRect(690, 100, 101, 23))
+        # self.pushButton_6.setGeometry(QtCore.QRect(690, 100, 101, 23))
+        sizePolicyMF.setHeightForWidth(self.pushButton_6.sizePolicy().hasHeightForWidth())
+        self.pushButton_6.setSizePolicy(sizePolicyMF)
         self.pushButton_6.setObjectName("pushButton_6")
+        self.gridLayout.addWidget(self.pushButton_6, 4, 6, 1, 2)
         self.pushButton_6.clicked.connect(self.pick_profile)
         self.pushButton_7 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_7.setGeometry(QtCore.QRect(690, 70, 101, 23))
+        # self.pushButton_7.setGeometry(QtCore.QRect(690, 70, 101, 23))
+        sizePolicyMF.setHeightForWidth(self.pushButton_7.sizePolicy().hasHeightForWidth())
+        self.pushButton_7.setSizePolicy(sizePolicyMF)
         self.pushButton_7.setObjectName("pushButton_7")
+        self.gridLayout.addWidget(self.pushButton_7, 3, 6, 1, 2)
         self.pushButton_7.clicked.connect(self.clear_table)
         self.pushButton_8 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_8.setGeometry(QtCore.QRect(5, 47, 65, 19))
+        # self.pushButton_8.setGeometry(QtCore.QRect(5, 47, 65, 19))
+        sizePolicyFF.setHeightForWidth(self.pushButton_8.sizePolicy().hasHeightForWidth())
+        self.pushButton_8.setSizePolicy(sizePolicyFF)
         self.pushButton_8.setObjectName("pushButton_8")
+        self.pushButton_8.setMaximumSize(QtCore.QSize(65, 19))
+        self.gridLayout.addWidget(self.pushButton_8, 2, 0, 1, 1)
         self.btn_st = None
         self.pushButton_8.clicked.connect(self.sel_all)
         self.pushButton_9 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_9.setGeometry(QtCore.QRect(234, 47, 25, 19))
+        # self.pushButton_9.setGeometry(QtCore.QRect(234, 47, 25, 19))
+        sizePolicyFF.setHeightForWidth(self.pushButton_9.sizePolicy().hasHeightForWidth())
+        self.pushButton_9.setSizePolicy(sizePolicyFF)
         self.pushButton_9.setObjectName("pushButton_9")
+        self.pushButton_9.setMaximumSize(QtCore.QSize(25, 19))
+        self.gridLayout.addWidget(self.pushButton_9, 2, 3, 1, 1)
         self.pushButton_9.clicked.connect(self.get_checked)
         self.comboBox = QtWidgets.QComboBox(self.centralwidget)
-        self.comboBox.setGeometry(QtCore.QRect(125, 47, 105, 19))
+        sizePolicyFF.setHeightForWidth(self.comboBox.sizePolicy().hasHeightForWidth())
+        self.comboBox.setSizePolicy(sizePolicyFF)
+        # self.comboBox.setGeometry(QtCore.QRect(125, 47, 105, 19))
+        self.comboBox.addItem("")
+        self.comboBox.addItem("")
         self.comboBox.setObjectName("comboBox")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.progressBar = QtWidgets.QProgressBar(self.centralwidget)
-        self.progressBar.setGeometry(QtCore.QRect(5, 508, 681, 20))
-        self.progressBar.setProperty("value", 0)
-        self.progressBar.setObjectName("progressBar")
-        self.progressBar.hide()
+        self.comboBox.setMaximumSize(QtCore.QSize(105, 19))
+        self.gridLayout.addWidget(self.comboBox, 2, 2, 1, 1)
+        # self.progressBar = QtWidgets.QProgressBar(self.centralwidget)
+        # self.progressBar.setGeometry(QtCore.QRect(5, 508, 681, 20))
+        # self.progressBar.setProperty("value", 0)
+        # self.progressBar.setObjectName("progressBar")
+        # self.gridLayout.addWidget(self.progressBar, 13, 0, 1, 6)
+        # self.progressBar.hide()
         self.progressBar_1 = QtWidgets.QProgressBar(self.centralwidget)
-        self.progressBar_1.setGeometry(QtCore.QRect(5, 505, 716, 12))
+        # self.progressBar_1.setGeometry(QtCore.QRect(5, 505, 716, 12))
         self.progressBar_1.setProperty("value", 0)
         self.progressBar_1.setObjectName("progressBar_1")
+        self.gridLayout.addWidget(self.progressBar_1, 13, 0, 1, 6)
         self.progressBar_1.hide()
-        self.progressBar_2 = QtWidgets.QProgressBar(self.centralwidget)
-        self.progressBar_2.setGeometry(QtCore.QRect(5, 532, 716, 12))
-        self.progressBar_2.setProperty("value", 0)
-        self.progressBar_2.setObjectName("progressBar_2")
-        self.progressBar_2.hide()
+        # self.progressBar_2 = QtWidgets.QProgressBar(self.centralwidget)
+        # self.progressBar_2.setGeometry(QtCore.QRect(5, 532, 716, 12))
+        # self.progressBar_2.setProperty("value", 0)
+        # self.progressBar_2.setObjectName("progressBar_2")
+        # self.progressBar_2.hide()
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(5, 530, 671, 16))
         self.label.setObjectName("label")
         self.label.hide()
         self.tableWidget = QtWidgets.QTableWidget(self.centralwidget)
-        self.tableWidget.setGeometry(QtCore.QRect(5, 70, 681, 431))
+        # self.tableWidget.setGeometry(QtCore.QRect(5, 70, 681, 431))
+        sizePolicyEE = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicyEE.setHorizontalStretch(0)
+        sizePolicyEE.setVerticalStretch(0)
+        sizePolicyEE.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicyEE)
+        self.tableWidget.setMinimumSize(QtCore.QSize(681, 431))
         self.tableWidget.setObjectName("tableWidget")
+        self.gridLayout.addWidget(self.tableWidget, 3, 0, 10, 6)
         self.tableWidget.setColumnCount(4)
         self.tableWidget.setRowCount(row_count)
         self.tableWidget.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
@@ -478,26 +544,39 @@ class Ui_MainWindow(object):
         header.setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch)
         header.setSectionResizeMode(3, QtWidgets.QHeaderView.Stretch)
         self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
-        self.lineEdit.setGeometry(QtCore.QRect(5, 20, 651, 23))
+        # self.lineEdit.setGeometry(QtCore.QRect(5, 20, 651, 23))
         self.lineEdit.setObjectName("lineEdit")
+        self.gridLayout.addWidget(self.lineEdit, 1, 0, 1, 5)
         self.lineEdit.setReadOnly(False)
         self.label_2 = QtWidgets.QLabel(self.centralwidget)
-        self.label_2.setGeometry(QtCore.QRect(6, 3, 71, 16))
+        # self.label_2.setGeometry(QtCore.QRect(6, 3, 71, 16))
+        sizePolicyFF.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicyFF)
         self.label_2.setObjectName("label_2")
+        self.gridLayout.addWidget(self.label_2, 0, 0, 1, 1)
         self.label_3 = QtWidgets.QLabel(self.centralwidget)
-        self.label_3.setGeometry(QtCore.QRect(690, 263, 31, 16))
+        # self.label_3.setGeometry(QtCore.QRect(690, 263, 31, 16))
+        sizePolicyFF.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
+        self.label_3.setSizePolicy(sizePolicyFF)
         self.label_3.setObjectName("label_3")
-        self.label_3.hide()
+        self.gridLayout.addWidget(self.label_3, 10, 6, 1, 1)
+        # self.label_3.hide()
         self.label_4 = QtWidgets.QLabel(self.centralwidget)
-        self.label_4.setGeometry(QtCore.QRect(750, 263, 21, 16))
+        # self.label_4.setGeometry(QtCore.QRect(750, 263, 21, 16))
+        sizePolicyFF.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
+        self.label_4.setSizePolicy(sizePolicyFF)
         self.label_4.setObjectName("label_4")
-        self.label_4.hide()
+        self.gridLayout.addWidget(self.label_4, 10, 7, 1, 1)
+        # self.label_4.hide()
         self.label_5 = QtWidgets.QLabel(self.centralwidget)
-        self.label_5.setGeometry(QtCore.QRect(690, 280, 47, 13))
+        # self.label_5.setGeometry(QtCore.QRect(690, 280, 47, 13))
+        sizePolicyFF.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicyFF)
         self.label_5.setObjectName("label_5")
+        self.gridLayout.addWidget(self.label_5, 11, 6, 1, 1)
         self.label_5.hide()
         self.label_6 = QtWidgets.QLabel(self.centralwidget)
-        self.label_6.setGeometry(QtCore.QRect(750, 279, 41, 16))
+        # self.label_6.setGeometry(QtCore.QRect(750, 279, 41, 16))
         palette = QtGui.QPalette()
         brush = QtGui.QBrush(QtGui.QColor(255, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
@@ -509,31 +588,52 @@ class Ui_MainWindow(object):
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, brush)
         self.label_6.setPalette(palette)
+        sizePolicyFF.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
+        self.label_6.setSizePolicy(sizePolicyFF)
         self.label_6.setObjectName("label_6")
+        self.gridLayout.addWidget(self.label_6, 11, 7, 1, 1)
         self.label_6.hide()
+        self.filler_label = QtWidgets.QLabel(self.centralwidget)
+        # self.label_5.setGeometry(QtCore.QRect(690, 280, 47, 13))
+        sizePolicyEE.setHeightForWidth(self.filler_label.sizePolicy().hasHeightForWidth())
+        self.filler_label.setSizePolicy(sizePolicyEE)
+        self.filler_label.setObjectName("emptyWidget")
+        self.gridLayout.addWidget(self.filler_label, 12, 6, 1, 2)
         self.label_7 = QtWidgets.QLabel(self.centralwidget)
-        self.label_7.setGeometry(QtCore.QRect(80, 50, 47, 13))
+        # self.label_7.setGeometry(QtCore.QRect(80, 50, 47, 13))
+        sizePolicyFF.setHeightForWidth(self.label_7.sizePolicy().hasHeightForWidth())
+        self.label_7.setSizePolicy(sizePolicyFF)
         self.label_7.setObjectName("label_7")
+        self.gridLayout.addWidget(self.label_7, 2, 1, 1, 1)
         self.label_8 = QtWidgets.QLabel(self.centralwidget)
-        self.label_8.setGeometry(QtCore.QRect(690, 250, 47, 13))
+        # self.label_8.setGeometry(QtCore.QRect(690, 250, 47, 13))
+        sizePolicyFF.setHeightForWidth(self.label_8.sizePolicy().hasHeightForWidth())
+        self.label_8.setSizePolicy(sizePolicyFF)
         self.label_8.setObjectName("label_8")
+        self.gridLayout.addWidget(self.label_8, 9, 6, 1, 1)
         # self.label_8.hide()
         self.label_9 = QtWidgets.QLabel(self.centralwidget)
-        self.label_9.setGeometry(QtCore.QRect(750, 250, 47, 13))
+        # self.label_9.setGeometry(QtCore.QRect(750, 250, 47, 13))
+        sizePolicyFF.setHeightForWidth(self.label_9.sizePolicy().hasHeightForWidth())
+        self.label_9.setSizePolicy(sizePolicyFF)
         self.label_9.setObjectName("label_9")
+        self.gridLayout.addWidget(self.label_9, 9, 7, 1, 1)
         # self.label_9.hide()
-        self.label_10 = QtWidgets.QLabel(self.centralwidget)
-        self.label_10.setGeometry(QtCore.QRect(5, 542, 681, 16))
-        self.label_10.setObjectName("label_10")
-        self.label_10.hide()
+        # self.label_10 = QtWidgets.QLabel(self.centralwidget)
+        # self.label_10.setGeometry(QtCore.QRect(5, 542, 681, 16))
+        # self.label_10.setObjectName("label_10")
+        # self.label_10.hide()
         self.label_11 = QtWidgets.QLabel(self.centralwidget)
-        self.label_11.setGeometry(QtCore.QRect(5, 515, 681, 16))
+        # self.label_11.setGeometry(QtCore.QRect(5, 515, 681, 16))
+        sizePolicyFF.setHeightForWidth(self.label_11.sizePolicy().hasHeightForWidth())
+        self.label_11.setSizePolicy(sizePolicyFF)
         self.label_11.setObjectName("label_11")
+        self.gridLayout.addWidget(self.label_11, 14, 0, 1, 6)
         self.label_11.hide()
-        self.label_12 = QtWidgets.QLabel(self.centralwidget)
-        self.label_12.setGeometry(QtCore.QRect(5, 532, 681, 16))
-        self.label_12.setObjectName("label_12")
-        self.label_12.hide()
+        # self.label_12 = QtWidgets.QLabel(self.centralwidget)
+        # self.label_12.setGeometry(QtCore.QRect(5, 532, 681, 16))
+        # self.label_12.setObjectName("label_12")
+        # self.label_12.hide()
         self.label_6.mousePressEvent = self.no_ID_msg
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -555,7 +655,6 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -583,14 +682,15 @@ class Ui_MainWindow(object):
         #item.setText(_translate("MainWindow", "New Column"))
         self.label_2.setText(_translate("MainWindow", "Mod Directory:"))
         self.label_3.setText(_translate("MainWindow", "Mods:"))
-        self.label_4.setText(_translate("MainWindow", "0"))
+        self.label_4.setText(_translate("MainWindow", ""))
         self.label_5.setText(_translate("MainWindow", "Not ID\'d:"))
-        self.label_6.setText(_translate("MainWindow", "0"))
+        self.label_6.setText(_translate("MainWindow", ""))
         self.label_8.setText(_translate("MainWindow", "MC Vers:"))
-        self.label_9.setText(_translate("MainWindow", "1.12.2"))
+        self.label_9.setText(_translate("MainWindow", ""))
         self.label_11.setText(_translate("MainWindow", "Prog1"))
-        self.label_10.setText(_translate("MainWindow", "Prog2"))
-        self.label_12.setText(_translate("MainWindow", "Prog1_2"))
+        self.filler_label.setText(_translate("MainWindow", ""))
+        # self.label_10.setText(_translate("MainWindow", "Prog2"))
+        # self.label_12.setText(_translate("MainWindow", "Prog1_2"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         # self.actionLoad_Profile.setText(_translate("MainWindow", "Load Profile"))
         self.actionClear_Cache.setText(_translate("MainWindow", "Clear Cache"))
@@ -626,6 +726,7 @@ class Ui_MainWindow(object):
             dia_show.dia_sig.connect(self.add_rows)
             dia_show.dia_sig2.connect(self.update_mod_dir)
             dia_show.dia_sig3.connect(self.no_ID)
+            dia_show.dia_sig4.connect(self.get_mc_vers)
             dia_show.exec_()
 
     @staticmethod
@@ -703,6 +804,7 @@ class Ui_MainWindow(object):
         self.scanmods.sig4.connect(self.profile_name)
         self.scanmods.sig5.connect(self.update_prog_1)
         self.scanmods.sig6.connect(self.done_scanning)
+        self.scanmods.sig7.connect(self.get_mc_vers)
         self.scanmods.start()
 
     @staticmethod
@@ -820,6 +922,9 @@ class Ui_MainWindow(object):
         self.label_5.hide()
         self.label_6.setText("")
         self.label_6.hide()
+        self.label_8.hide()
+        self.label_9.setText("")
+        self.label_9.hide()
         self.progressBar_1.hide()
         self.label_11.hide()
         self.tableWidget.resizeColumnsToContents()
@@ -834,6 +939,12 @@ class Ui_MainWindow(object):
             else:
                 print("nope")
         # print(checked_list)
+
+    def get_mc_vers(self, mc_vers_list):
+        mc_vers = Counter(mc_vers_list).most_common(1)[0][0]
+        self.label_8.show()
+        self.label_9.show()
+        self.label_9.setText(mc_vers)
 
 
 if __name__ == "__main__":
